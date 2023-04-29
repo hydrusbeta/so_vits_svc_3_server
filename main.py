@@ -158,7 +158,6 @@ def get_config_filename(character_dir):
     else:
         return potential_name
 
-
 def get_model_filename(character_dir):
     potential_names = [file for file in os.listdir(character_dir) if file.startswith('G_')]
     if len(potential_names) == 0:
@@ -198,16 +197,39 @@ def construct_speaker_line(character):
 
 
 def get_speaker(character):
-    # It is assumed that the config.json file only has a single speaker within it.
-    # todo: add an option in hay_say_ui for selecting a speaker and then actually select it here.
     character_dir = get_model_path(ARCHITECTURE_NAME, character)
     config_filename = get_config_filename(character_dir)
     with open(config_filename, 'r') as file:
         config_json = json.load(file)
     speaker_dict = config_json['spk']
-    reverse_lookup = {speaker_dict[key]: key for key in speaker_dict.keys()}
-    first_speaker = reverse_lookup[0]
-    return first_speaker
+    speaker = get_speaker_key(character_dir, speaker_dict)
+    return speaker
+
+
+def get_speaker_key(character_dir, speaker_dict):
+    all_speakers = speaker_dict.keys()
+    if len(all_speakers) == 1:
+        return list(all_speakers)[0]
+    else:
+        selected_speaker = get_speaker_from_speaker_config(character_dir)
+        if selected_speaker not in all_speakers:
+            raise Exception("The key \"" + selected_speaker + "\", from speaker.json, not found in config.json. "
+                                                              "Expecting one of: " + str(list(all_speakers)))
+        else:
+            return selected_speaker
+
+
+def get_speaker_from_speaker_config(character_dir):
+    potential_json_path = os.path.join(character_dir, 'speaker.json')
+    if not os.path.isfile(potential_json_path):
+        raise Exception("speaker.json not found! If config.json has more than one speaker, then you must add a "
+                        "speaker.json file to the character folder which specifies the desired speaker. The contents "
+                        "of speaker.json should be a single entry in the following format: "
+                        "{\"speaker\": <desired speaker name>}")
+    else:
+        with open(potential_json_path, 'r') as file:
+            speaker_selector = json.load(file)
+        return speaker_selector['speaker']
 
 
 def copy_input_audio(input_filename_sans_extension):

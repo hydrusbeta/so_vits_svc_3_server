@@ -199,6 +199,7 @@ def construct_speaker_line(character):
 
 def get_speaker(character):
     # It is assumed that the config.json file only has a single speaker within it.
+    # todo: add an option in hay_say_ui for selecting a speaker and then actually select it here.
     character_dir = get_model_path(ARCHITECTURE_NAME, character)
     config_filename = get_config_filename(character_dir)
     with open(config_filename, 'r') as file:

@@ -29,9 +29,9 @@ def generate() -> (str, int):
     code = 200
     message = ""
     try:
-        input_filename_sans_extension, character, semitone_pitch, output_filename_sans_extension = parse_inputs()
+        input_filename_sans_extension, character, pitch_shift, output_filename_sans_extension = parse_inputs()
         ensure_template_exists()
-        modify_inference_file(input_filename_sans_extension, character, semitone_pitch)
+        modify_inference_file(input_filename_sans_extension, character, pitch_shift)
         copy_input_audio(input_filename_sans_extension)
         execute_program()
         copy_output(output_filename_sans_extension)
@@ -56,35 +56,35 @@ def parse_inputs():
     check_for_missing_keys()
     input_filename_sans_extension = request.json['Inputs']['User Audio']
     character = request.json['Options']['Character']
-    semitone_pitch = request.json['Options']['Semitone Pitch']
+    pitch_shift = request.json['Options']['Pitch Shift']
     output_filename_sans_extension = request.json['Output File']
-    check_types(input_filename_sans_extension, character, semitone_pitch, output_filename_sans_extension)
-    return input_filename_sans_extension, character, semitone_pitch, output_filename_sans_extension
+    check_types(input_filename_sans_extension, character, pitch_shift, output_filename_sans_extension)
+    return input_filename_sans_extension, character, pitch_shift, output_filename_sans_extension
 
 
 def check_for_missing_keys():
     missing_user_audio = ('Inputs' not in request.json.keys()) or ('User Audio' not in request.json['Inputs'].keys())
     missing_character = ('Options' not in request.json.keys()) or ('Character' not in request.json['Options'].keys())
-    missing_semitone_pitch = ('Options' not in request.json.keys()) \
-        or ('Semitone Pitch' not in request.json['Options'].keys())
+    missing_pitch_shift = ('Options' not in request.json.keys()) \
+        or ('Pitch Shift' not in request.json['Options'].keys())
     missing_output_filename = 'Output File' not in request.json.keys()
-    if missing_user_audio or missing_character or missing_semitone_pitch or missing_output_filename:
+    if missing_user_audio or missing_character or missing_pitch_shift or missing_output_filename:
         message = ('Missing "User Audio" \n' if missing_user_audio else '') \
                 + ('Missing "Character" \n' if missing_character else '') \
-                + ('Missing "Semitone Pitch" \n' if missing_semitone_pitch else '') \
+                + ('Missing "Pitch Shift" \n' if missing_pitch_shift else '') \
                 + ('Missing "Output File" +n' if missing_output_filename else '')
         raise BadInputException(message)
 
 
-def check_types(user_audio, character, semitone_pitch, output_filename):
+def check_types(user_audio, character, pitch_shift, output_filename):
     wrong_type_user_audio = not isinstance(user_audio, str)
     wrong_type_character = not isinstance(character, str)
-    wrong_type_semitone_pitch = not isinstance(semitone_pitch, int)
+    wrong_type_pitch_shift = not isinstance(pitch_shift, int)
     wrong_type_output_filename = not isinstance(output_filename, str)
-    if wrong_type_user_audio or wrong_type_character or wrong_type_semitone_pitch or wrong_type_output_filename:
+    if wrong_type_user_audio or wrong_type_character or wrong_type_pitch_shift or wrong_type_output_filename:
         message = ('"User Audio" should be a string \n' if wrong_type_user_audio else '') \
                 + ('"Character" should be a string \n' if wrong_type_character else '') \
-                + ('"Semitone Pitch" should be an int \n' if wrong_type_semitone_pitch else '') \
+                + ('"Pitch Shift" should be an int \n' if wrong_type_pitch_shift else '') \
                 + ('"Output File" should be a string \n' if wrong_type_output_filename else '')
         raise BadInputException(message)
 
@@ -105,17 +105,17 @@ def ensure_template_exists():
             file.write(content)
 
 
-def modify_inference_file(input_filename_sans_extension, character, semitone_pitch):
+def modify_inference_file(input_filename_sans_extension, character, pitch_shift):
     with open(INFERENCE_TEMPLATE_PATH, 'r') as file:
         content = file.read()
-    modified_content = modify_content(content, input_filename_sans_extension, character, semitone_pitch)
+    modified_content = modify_content(content, input_filename_sans_extension, character, pitch_shift)
     with open(INFERENCE_CODE_PATH, 'w') as file:
         file.write(modified_content)
 
 
-def modify_content(content, input_filename_sans_extension, character, semitone_pitch):
+def modify_content(content, input_filename_sans_extension, character, pitch_shift):
     model_path_line, config_path_line, clean_names_line, trans_line, speaker_line = \
-        construct_lines(input_filename_sans_extension, character, semitone_pitch)
+        construct_lines(input_filename_sans_extension, character, pitch_shift)
     content = re.sub(r'^model_path = .*', model_path_line, content, flags=re.M)
     content = re.sub(r'^config_path = .*', config_path_line, content, flags=re.M)
     content = re.sub(r'^clean_names = .*', clean_names_line, content, flags=re.M)
@@ -124,10 +124,10 @@ def modify_content(content, input_filename_sans_extension, character, semitone_p
     return content
 
 
-def construct_lines(input_filename_sans_extension, character, semitone_pitch):
+def construct_lines(input_filename_sans_extension, character, pitch_shift):
     model_path_line, config_path_line = construct_model_and_config_path_lines(character)
     clean_names_line = construct_clean_names_line(input_filename_sans_extension)
-    trans_line = construct_trans_line(semitone_pitch)
+    trans_line = construct_trans_line(pitch_shift)
     speaker_line = construct_speaker_line(character)
     return model_path_line, config_path_line, clean_names_line, trans_line, speaker_line
 
@@ -181,14 +181,14 @@ def check_file_exists(input_filename_sans_extension):
                         '" in ' + os.path.dirname(potential_filename))
 
 
-def construct_trans_line(semitone_pitch):
+def construct_trans_line(pitch_shift):
     try:
-        int(str(semitone_pitch))
+        int(str(pitch_shift))
     except ValueError:
-        raise Exception('The specified semitone pitch, ' + str(semitone_pitch) + ' should be an integer value, '
+        raise Exception('The specified pitch shift, ' + str(pitch_shift) + ' should be an integer value, '
                                                                                  'e.g. -5 or 11')
     else:
-        return 'trans = [' + str(semitone_pitch) + ']'
+        return 'trans = [' + str(pitch_shift) + ']'
 
 
 def construct_speaker_line(character):

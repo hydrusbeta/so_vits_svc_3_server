@@ -20,29 +20,6 @@ RUN apt-get update && apt-get install -y \
 # todo: Is there a better way to refer to the home directory (~)?
 ARG HOME_DIR=/root
 
-# download so_vits_svc_3 and checkout a specific commit that is known to work with this docker 
-# file and with Hay Say.
-RUN git clone -b 3.0-32k --single-branch -q https://github.com/svc-develop-team/so-vits-svc ~/hay_say/so_vits_svc_3
-WORKDIR $HOME_DIR/hay_say/so_vits_svc_3
-RUN git reset --hard 20c733901e283d62205c9bbe26afc2954172bd12
-
-# Edit the requirements file.
-# Explanation: The requirements file does not specify a version number for several of the dependencies,
-# which results in pip installing more recent versions of modules that conflict with older ones, so 
-# let's specify version numbers that are known to work. 
-RUN sed -i 's/\bscikit-maad\b$/scikit-maad==1.3.12/' ~/hay_say/so_vits_svc_3/requirements.txt; \
-    sed -i 's/\bpraat-parselmouth\b$/praat-parselmouth==0.4.3/' ~/hay_say/so_vits_svc_3/requirements.txt; \
-    sed -i 's/\bonnx\b$/onnx==1.13.1/' ~/hay_say/so_vits_svc_3/requirements.txt;\
-    sed -i 's/\bonnxsim\b$/onnxsim==0.4.17/' ~/hay_say/so_vits_svc_3/requirements.txt; \
-    sed -i 's/\bonnxoptimizer\b$/onnxoptimizer==0.3.8/' ~/hay_say/so_vits_svc_3/requirements.txt; \
-    echo "pandas==1.4.4" >> ~/hay_say/so_vits_svc_3/requirements.txt; \
-    echo "matplotlib==3.6.0" >> ~/hay_say/so_vits_svc_3/requirements.txt; \
-    echo "scikit-image==0.19.3" >> ~/hay_say/so_vits_svc_3/requirements.txt
-
-# The requirements file is also apparently missing librosa and torchvision, so add them too:
-RUN echo "librosa==0.9.0" >> ~/hay_say/so_vits_svc_3/requirements.txt; \
-    echo "torchvision==0.11.1" >> ~/hay_say/so_vits_svc_3/requirements.txt
-
 # Create virtual environments for so-vits-svc 3.0 and Hay Say's so_vits_svc_3_server
 RUN python3.8 -m venv ~/hay_say/.venvs/so_vits_svc_3; \
     python3.9 -m venv ~/hay_say/.venvs/so_vits_svc_3_server
@@ -52,18 +29,70 @@ RUN python3.8 -m venv ~/hay_say/.venvs/so_vits_svc_3; \
 RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install --no-cache-dir --upgrade pip wheel; \
     ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install --no-cache-dir --upgrade pip wheel
 
-# Install all python dependencies for so_vits_svc_3 using the edited requirements file
-RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install --no-cache-dir -r ~/hay_say/so_vits_svc_3/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu113
+# Install all python dependencies for so-vits-svc 3.0.
+# Note: This is done *before* cloning the repository because the dependencies are likely to change less often than the
+# so-vits-svc 3.0 code itself. Cloning the repo after installing the requirements helps the Docker cache optimize build
+# time. See https://docs.docker.com/build/cache
+# Note: The requirements file does not specify a version number for several of the dependencies, which results in pip
+# installing more recent versions of modules that conflict with older ones, so I have modified the requirements to
+# include version numbers for everything. Furthermore, the requirements file is apparently missing librosa and
+# torchvision, so I have added them too:
+RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install \
+    --no-cache-dir \
+    --extra-index-url https://download.pytorch.org/whl/cu113 \
+	Flask==2.1.2 \
+	Flask_Cors==3.0.10 \
+	gradio==3.4.1 \
+	numpy==1.19.2 \
+	playsound==1.3.0 \
+	PyAudio==0.2.12 \
+	pydub==0.25.1 \
+	pyworld==0.3.0 \
+	requests==2.28.1 \
+	scipy==1.7.3 \
+	sounddevice==0.4.5 \
+	SoundFile==0.10.3.post1 \
+	starlette==0.19.1 \
+	torch==1.10.0+cu113 \
+	torchaudio==0.10.0+cu113 \
+	tqdm==4.63.0 \
+	scikit-maad==1.3.12 \
+	praat-parselmouth==0.4.3 \
+	onnx==1.13.1 \
+	onnxsim==0.4.17 \
+	onnxoptimizer==0.3.8 \
+	pandas==1.4.4 \
+	matplotlib==3.6.0 \
+	scikit-image==0.19.3 \
+	librosa==0.9.0 \
+	torchvision==0.11.1
+
+# Install the dependencies for the Hay Say interface code
+RUN ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install \
+    --no-cache-dir \
+    hay-say-common==0.1.4
 
 # Download the pre-trained Hubert model checkpoint
-RUN wget https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt --directory-prefix=/root/hay_say/so_vits_svc_3/hubert/
-
-# Download the Hay Say Interface code and install its dependencies
-RUN git clone https://github.com/hydrusbeta/so_vits_svc_3_server ~/hay_say/so_vits_svc_3_server/ && \
-    ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install --no-cache-dir -r ~/hay_say/so_vits_svc_3_server/requirements.txt
+RUN mkdir -p ~/hay_say/temp_downloads/hubert/ && \
+    wget https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt --directory-prefix=/root/hay_say/temp_downloads/hubert/
 
 # Expose port 6575, the port that Hay Say uses for so_vits_svc_3
 EXPOSE 6575
+
+# Download so_vits_svc_3 and checkout a specific commit that is known to work with this docker file and with Hay Say.
+# IMPORTANT! Commit d9bdae2e9f279e5a72997cedac2e8023cf3367bd is the last one that used the MIT License before
+# svc-develop-team switched to the GNU Affero General Public License. Using a commit that is later than
+# d9bdae2e9f279e5a72997cedac2e8023cf3367bd may result in a licensing conflict because so_vits_svc_3_server is published
+# under the Apache 2.0 License and it modifies a file from so-vits-svc-3.0 on-the-fly.
+RUN git clone -b 3.0-32k --single-branch -q https://github.com/svc-develop-team/so-vits-svc ~/hay_say/so_vits_svc_3
+WORKDIR $HOME_DIR/hay_say/so_vits_svc_3
+RUN git reset --hard d9bdae2e9f279e5a72997cedac2e8023cf3367bd
+
+# Move the pre-trained Hubert model to the expected directory.
+RUN mv /root/hay_say/temp_downloads/hubert/* /root/hay_say/so_vits_svc_3/hubert/
+
+# Download the Hay Say Interface code
+RUN git clone https://github.com/hydrusbeta/so_vits_svc_3_server ~/hay_say/so_vits_svc_3_server/
 
 # Run the Hay Say Flask server on startup
 CMD ["/bin/sh", "-c", "/root/hay_say/.venvs/so_vits_svc_3_server/bin/python /root/hay_say/so_vits_svc_3_server/main.py"]

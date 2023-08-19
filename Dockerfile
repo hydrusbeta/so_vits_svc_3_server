@@ -84,7 +84,7 @@ EXPOSE 6575
 # svc-develop-team switched to the GNU Affero General Public License. Using a commit that is later than
 # d9bdae2e9f279e5a72997cedac2e8023cf3367bd may result in a licensing conflict because so_vits_svc_3_server is published
 # under the Apache 2.0 License and it modifies a file from so-vits-svc-3.0 on-the-fly.
-RUN git clone -b 3.0-32k --single-branch -q https://github.com/svc-develop-team/so-vits-svc ~/hay_say/so_vits_svc_3
+RUN git clone -b Mera-SVC-32k --single-branch -q https://github.com/svc-develop-team/so-vits-svc ~/hay_say/so_vits_svc_3
 WORKDIR $HOME_DIR/hay_say/so_vits_svc_3
 RUN git reset --hard d9bdae2e9f279e5a72997cedac2e8023cf3367bd
 

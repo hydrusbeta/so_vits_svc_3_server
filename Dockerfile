@@ -88,6 +88,11 @@ RUN git clone -b 3.0-32k --single-branch -q https://github.com/svc-develop-team/
 WORKDIR $HOME_DIR/hay_say/so_vits_svc_3
 RUN git reset --hard d9bdae2e9f279e5a72997cedac2e8023cf3367bd
 
+# Create the results directory. The directory would be automatically created by so-vits-svc 3.0 anyways, but
+# so_vits_svc_3_server expects it to exist and creating it manually now prevents a rare bug that can occur in
+# so_vits_svc_3_server on the very first run of the architecture.
+RUN mkdir ~/hay_say/so_vits_svc_3/results
+
 # Move the pre-trained Hubert model to the expected directory.
 RUN mv /root/hay_say/temp_downloads/hubert/* /root/hay_say/so_vits_svc_3/hubert/
 

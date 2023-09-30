@@ -267,7 +267,7 @@ def register_methods(cache):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(prog='main.py',
-                                     description='A webservice interface for TTS inference with Controllable Talknet')
+                                     description='A webservice interface for voice conversion with so-vits-svc 3.0')
     parser.add_argument('--cache_implementation', default='file', choices=cache_implementation_map.keys(),
                         help='Selects an implementation for the audio cache, e.g. saving them to files or to a database.')
     return parser.parse_args()

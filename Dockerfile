@@ -26,8 +26,8 @@ RUN python3.8 -m venv ~/hay_say/.venvs/so_vits_svc_3; \
 
 # Python virtual environments do not come with wheel, so we must install it. Upgrade pip while 
 # we're at it to handle modules that use PEP 517
-RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install --no-cache-dir --upgrade pip wheel; \
-    ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install --no-cache-dir --upgrade pip wheel
+RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install --timeout=300 --no-cache-dir --upgrade pip wheel; \
+    ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install --timeout=300 --no-cache-dir --upgrade pip wheel
 
 # Install all python dependencies for so-vits-svc 3.0.
 # Note: This is done *before* cloning the repository because the dependencies are likely to change less often than the
@@ -38,11 +38,12 @@ RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install --no-cache-dir --upgrade pip 
 # include version numbers for everything. Furthermore, the requirements file is apparently missing librosa and
 # torchvision, so I have added them too:
 RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install \
+    --timeout=300 \
     --no-cache-dir \
     --extra-index-url https://download.pytorch.org/whl/cu113 \
 	Flask==2.1.2 \
 	Flask_Cors==3.0.10 \
-	gradio==3.4.1 \
+	gradio==3.45.2 \
 	numpy==1.19.2 \
 	playsound==1.3.0 \
 	PyAudio==0.2.12 \
@@ -69,6 +70,7 @@ RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install \
 
 # Install the dependencies for the Hay Say interface code
 RUN ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install \
+    --timeout=300 \
     --no-cache-dir \
     hay-say-common==1.0.1 \
     jsonschema==4.19.1

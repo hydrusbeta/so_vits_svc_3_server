@@ -72,7 +72,7 @@ RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install \
 RUN ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install \
     --timeout=300 \
     --no-cache-dir \
-    hay-say-common==1.0.1 \
+    hay-say-common==1.0.2 \
     jsonschema==4.19.1
 
 # Download the pre-trained Hubert model checkpoint

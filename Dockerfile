@@ -5,8 +5,8 @@
 # 3.5 through 9.0
 FROM nvidia/cuda:11.8.0-base-ubuntu20.04
 ENV TZ=Etc/GMT
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone.
+RUN apt update && apt install -y --no-install-recommends \
     git \
     gcc \
     g++ \
@@ -17,14 +17,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     portaudio19-dev \
     libsndfile1
 
-# todo: Is there a better way to refer to the home directory (~)?
-ARG HOME_DIR=/root
+# Switch to a limited user
+ARG LIMITED_USER=luna
+RUN useradd --create-home --shell /bin/bash $LIMITED_USER
+USER $LIMITED_USER
+
+# Some Docker directives (such as COPY and WORKDIR) and linux command options (such as wget's directory-prefix option)
+# do not expand the tilde (~) character to /home/<user>, so define a temporary variable to use instead.
+ARG HOME_DIR=/home/$LIMITED_USER
+
+# Download the pre-trained Hubert model checkpoint
+RUN mkdir -p ~/hay_say/temp_downloads/hubert/ && \
+    wget https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt --directory-prefix=$HOME_DIR/hay_say/temp_downloads/hubert/
 
 # Create virtual environments for so-vits-svc 3.0 and Hay Say's so_vits_svc_3_server
 RUN python3.8 -m venv ~/hay_say/.venvs/so_vits_svc_3; \
     python3.9 -m venv ~/hay_say/.venvs/so_vits_svc_3_server
 
-# Python virtual environments do not come with wheel, so we must install it. Upgrade pip while 
+# Python virtual environments do not come with wheel, so we must install it. Upgrade pip while
 # we're at it to handle modules that use PEP 517
 RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install --timeout=300 --no-cache-dir --upgrade pip wheel; \
     ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install --timeout=300 --no-cache-dir --upgrade pip wheel
@@ -54,8 +64,8 @@ RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install \
 	sounddevice==0.4.5 \
 	SoundFile==0.10.3.post1 \
 	starlette==0.19.1 \
-	torch==1.10.0+cu113 \
-	torchaudio==0.10.0+cu113 \
+	torch==1.11.0+cu113 \
+	torchaudio==0.11.0+cu113 \
 	tqdm==4.63.0 \
 	scikit-maad==1.3.12 \
 	praat-parselmouth==0.4.3 \
@@ -66,7 +76,7 @@ RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install \
 	matplotlib==3.6.0 \
 	scikit-image==0.19.3 \
 	librosa==0.9.0 \
-	torchvision==0.11.1
+	torchvision==0.12.0+cu113
 
 # Install the dependencies for the Hay Say interface code
 RUN ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install \
@@ -75,14 +85,7 @@ RUN ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install \
     hay-say-common==1.0.7 \
     jsonschema==4.19.1
 
-# Download the pre-trained Hubert model checkpoint
-RUN mkdir -p ~/hay_say/temp_downloads/hubert/ && \
-    wget https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt --directory-prefix=/root/hay_say/temp_downloads/hubert/
-
-# Expose port 6575, the port that Hay Say uses for so_vits_svc_3
-EXPOSE 6575
-
-# Download so_vits_svc_3 and checkout a specific commit that is known to work with this docker file and with Hay Say.
+# Clone so_vits_svc_3 and checkout a specific commit that is known to work with this docker file and with Hay Say.
 # IMPORTANT! Commit d9bdae2e9f279e5a72997cedac2e8023cf3367bd is the last one that used the MIT License before
 # svc-develop-team switched to the GNU Affero General Public License. Using a commit that is later than
 # d9bdae2e9f279e5a72997cedac2e8023cf3367bd may result in a licensing conflict because so_vits_svc_3_server is published
@@ -91,16 +94,19 @@ RUN git clone -b Mera-SVC-32k --single-branch -q https://github.com/svc-develop-
 WORKDIR $HOME_DIR/hay_say/so_vits_svc_3
 RUN git reset --hard d9bdae2e9f279e5a72997cedac2e8023cf3367bd
 
+# Clone the Hay Say Interface code
+RUN git clone -b database-cache --single-branch https://github.com/hydrusbeta/so_vits_svc_3_server ~/hay_say/so_vits_svc_3_server/
+
 # Create the results directory. The directory would be automatically created by so-vits-svc 3.0 anyways, but
 # so_vits_svc_3_server expects it to exist and creating it manually now prevents a rare bug that can occur in
 # so_vits_svc_3_server on the very first run of the architecture.
 RUN mkdir ~/hay_say/so_vits_svc_3/results
 
-# Move the pre-trained Hubert model to the expected directory.
-RUN mv /root/hay_say/temp_downloads/hubert/* /root/hay_say/so_vits_svc_3/hubert/
+# Expose port 6575, the port that Hay Say uses for so_vits_svc_3
+EXPOSE 6575
 
-# Download the Hay Say Interface code
-RUN git clone -b main --single-branch https://github.com/hydrusbeta/so_vits_svc_3_server ~/hay_say/so_vits_svc_3_server/
+# Move the pre-trained Hubert model to the expected directory.
+RUN mv ~/hay_say/temp_downloads/hubert/* ~/hay_say/so_vits_svc_3/hubert/
 
 # Run the Hay Say Flask server on startup
-CMD ["/bin/sh", "-c", "/root/hay_say/.venvs/so_vits_svc_3_server/bin/python /root/hay_say/so_vits_svc_3_server/main.py --cache_implementation file"]
+CMD ["/bin/sh", "-c", "~/hay_say/.venvs/so_vits_svc_3_server/bin/python ~/hay_say/so_vits_svc_3_server/main.py --cache_implementation file"]

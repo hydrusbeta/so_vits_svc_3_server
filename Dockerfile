@@ -82,7 +82,7 @@ RUN ~/hay_say/.venvs/so_vits_svc_3/bin/pip install \
 RUN ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install \
     --timeout=300 \
     --no-cache-dir \
-    hay-say-common==1.0.7 \
+    hay-say-common==1.0.8 \
     jsonschema==4.19.1
 
 # Clone so_vits_svc_3 and checkout a specific commit that is known to work with this docker file and with Hay Say.
@@ -92,10 +92,10 @@ RUN ~/hay_say/.venvs/so_vits_svc_3_server/bin/pip install \
 # under the Apache 2.0 License and it modifies a file from so-vits-svc-3.0 on-the-fly.
 RUN git clone -b Mera-SVC-32k --single-branch -q https://github.com/svc-develop-team/so-vits-svc ~/hay_say/so_vits_svc_3
 WORKDIR $HOME_DIR/hay_say/so_vits_svc_3
-RUN git reset --hard d9bdae2e9f279e5a72997cedac2e8023cf3367bd
+RUN git reset --hard 38a235c1a3ad49fac0ddbd13a04d00cfa250812f # Jul 17, 2023
 
 # Clone the Hay Say Interface code
-RUN git clone -b database-cache --single-branch https://github.com/hydrusbeta/so_vits_svc_3_server ~/hay_say/so_vits_svc_3_server/
+RUN git clone -b main --single-branch https://github.com/hydrusbeta/so_vits_svc_3_server ~/hay_say/so_vits_svc_3_server/
 
 # Create the results directory. The directory would be automatically created by so-vits-svc 3.0 anyways, but
 # so_vits_svc_3_server expects it to exist and creating it manually now prevents a rare bug that can occur in
